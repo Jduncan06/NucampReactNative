@@ -1,5 +1,5 @@
 import Constants from "expo-constants";
-import { Platform, Image, Text, View, StyleSheet } from "react-native";
+import { Platform, Image, Text, View, StyleSheet, Alert, ToastAndroid } from "react-native";
 import { createStackNavigator } from "@react-navigation/stack";
 import DirectoryScreen from "./DirectoryScreen";
 import CampsiteInfoScreen from "./CampsiteInfoScreen";
@@ -17,6 +17,9 @@ import { fetchPromotions } from "../features/promotions/promotionsSlice";
 import {fetchComments} from '../features/comments/commentsSlice';
 import ReservationScreen from "./ReservationScreen";
 import FavoritesScreen from "./FavoritesScreen";
+import LoginScreen from './LoginScreen';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/core';
+import NetInfo from '@react-native-community/netinfo';
 
 const Drawer = createDrawerNavigator();
 
@@ -172,6 +175,34 @@ const FavoritesNavigator = () =>{
   );
 }
 
+const LoginNavigator = () =>{
+  const Stack = createStackNavigator();
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={({ navigation, route }) =>({
+          headerTitle: getFocusedRouteNameFromRoute(route),
+          headerLeft: () => (
+             <Icon
+               name={
+                getFocusedRouteNameFromRoute(route) ===
+                'Register'
+                    ? 'user-plus'
+                    : 'sign-in'
+            }
+               type='font-awesome'
+               iconStyle={styles.stackIcon}
+               onPress={() => navigation.toggleDrawer()}
+             />
+          ) 
+         })}
+      />
+    </Stack.Navigator>
+  );
+}
+
 const CustomDrawerContent = (props) => (
   <DrawerContentScrollView {...props}>
     <View style={styles.drawerHeader}>
@@ -195,6 +226,54 @@ const Main = () => {
     dispatch(fetchPartners());
     dispatch(fetchComments());
   },[dispatch]);
+  
+  useEffect(() => {
+    showNetInfo()
+  },[])
+
+  const showNetInfo = async() => {
+    const connectionInfo = await NetInfo.fetch()
+      Platform.OS === 'ios'
+                ? Alert.alert(
+                      'Initial Network Connectivity Type:',
+                      connectionInfo.type
+                  )
+                : ToastAndroid.show(
+                      'Initial Network Connectivity Type: ' +
+                          connectionInfo.type,
+                      ToastAndroid.LONG
+                  );
+    
+    const unsubscribeNetInfo = NetInfo.addEventListener(
+      (connectionInfo) => {
+        handleConnectivityChange(connectionInfo);
+    }
+    
+    )
+    return unsubscribeNetInfo;
+  }
+
+  const handleConnectivityChange = (connectionInfo) => {
+    let connectionMsg = 'You are now connected to an active network.';
+
+    switch (connectionInfo.type) {
+      case 'none':
+          connectionMsg = 'No network connection is active.';
+          break;
+      case 'unknown':
+          connectionMsg = 'The network connection state is now unknown.';
+          break;
+      case 'cellular':
+          connectionMsg = 'You are now connected to a cellular network.';
+          break;
+      case 'wifi':
+          connectionMsg = 'You are now connected to a WiFi network.';
+          break;
+  }
+  Platform.OS === 'ios'
+    ? Alert.alert('Connection change:', connectionMsg)
+    : ToastAndroid.show(connectionMsg, ToastAndroid.LONG);
+  }
 
   return (
     <View
@@ -203,11 +282,26 @@ const Main = () => {
         paddingTop: Platform.OS === "ios" ? 0 : Constants.statusBarHeight,
       }}
     >
-      <Drawer.Navigator
+    <Drawer.Navigator
         initialRouteName="Home"
         drawerContent={CustomDrawerContent}
         drawerStyle={{ backgroundColor: "#CEC8FF" }}
       >
+        <Drawer.Screen
+          name="Login"
+          component={LoginNavigator}
+          options={{ 
+            drawerIcon: ({ color}) => (
+              <Icon
+                name= 'sign-in'
+                type="font-awesome"
+                size={24}
+                iconStyle={{width: 24}}
+                color={color}
+              />
+            )
+          }}
+        />
         <Drawer.Screen
           name="Home"
           component={HomeNavigator}
